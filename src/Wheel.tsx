@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import styled from 'styled-components';
-
+import ReactSlider from 'react-slider';
 import { capitalize } from './utils';
 import { SpinButtons } from './SpinButtons';
 import { SongNames, SpinDirection } from './types';
@@ -61,6 +61,7 @@ const colors = [
 export const Wheel: React.FC<Props> = ({ participants }) => {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const [audioVolume, setAudioVolume] = useState(30);
   const [track, setTrack] = useState<SongNames>('baraban_default.mp3');
   const [spinDirection, setSpinDirection] =
     useState<SpinDirection>('по часовой');
@@ -147,8 +148,8 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
 
   const startSpin = useCallback(() => {
     if (spinning) return;
-    const audio = new Audio(`/${track}`);
-    audio.volume = 0.5;
+    let audio = new Audio(`/${track}`);
+    audio.volume = audioVolume / 100;
     audio.play();
     setSpinning(true);
 
@@ -232,6 +233,8 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
     });
   };
 
+  console.log('audio', audioVolume / 100);
+
   return (
     <div>
       <canvas
@@ -248,6 +251,25 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
         participants={participants}
       />
       <MusicButtons track={track} setTrack={handleChangeTrack} />
+      <ReactSlider
+        className="customSlider"
+        trackClassName="customSlider-track"
+        thumbClassName="customSlider-thumb"
+        marks={5}
+        min={0}
+        max={100}
+        defaultValue={audioVolume}
+        value={audioVolume}
+        onChange={(value: number) => setAudioVolume(value)}
+        renderMark={(props: any) => {
+          if (props.key < audioVolume) {
+            props.className = 'customSlider-mark customSlider-mark-before';
+          } else if (props.key === audioVolume) {
+            props.className = 'customSlider-mark customSlider-mark-active';
+          }
+          return <span {...props} />;
+        }}
+      />
       {showPopup && popupWinner && (
         <Popup>
           <h2>Поздравляю!</h2>
