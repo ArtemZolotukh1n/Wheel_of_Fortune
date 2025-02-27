@@ -233,8 +233,6 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
     });
   };
 
-  console.log('audio', audioVolume / 100);
-
   return (
     <div>
       <canvas
