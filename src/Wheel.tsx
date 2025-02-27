@@ -147,8 +147,9 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
 
   const startSpin = useCallback(() => {
     if (spinning) return;
-    const mySound = new Audio(`/${track}`);
-    mySound.play();
+    const audio = new Audio(`/${track}`);
+    audio.volume = 0.5;
+    audio.play();
     setSpinning(true);
 
     // Set the number of full rotations and calculate final rotation
