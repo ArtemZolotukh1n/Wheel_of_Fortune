@@ -1,70 +1,58 @@
+import React from 'react';
 import styled from 'styled-components';
-
+import { ParticipantsProvider } from './context/ParticipantsContext';
+import { WheelProvider } from './context/WheelContext';
+import { ErrorProvider } from './context/ErrorContext';
 import { Participants } from './Participants';
 import { Wheel } from './Wheel';
-
-import './App.css';
-import { useState } from 'react';
 import { Header } from './Header';
+import { ErrorNotification } from './components/ErrorNotification';
+import './App.css';
+import { useErrorContext } from './hooks/useErrorContext';
 
 const Main = styled.main`
   display: flex;
   justify-content: space-around;
   padding: 20px 0px;
+  min-height: calc(100vh - 200px);
 
   @media (max-width: 768px) {
     flex-direction: column-reverse;
     align-items: center;
+    padding: 10px;
   }
 `;
 
-export const MAX_PARTICIPANTS = 32;
-const DEFAULT_NAMES = [
-  'Илья М',
-  'Илья П',
-  'Темочка',
-  'Павел',
-  'Дмитрий',
-  'Константин',
-];
-function App() {
-  const [names, setNames] = useState<string[]>(DEFAULT_NAMES);
+const AppContainer = styled.div`
+  min-height: 100vh;
+  color: #ffffff;
+`;
 
-  const handleAddName = (name: string) => {
-    if (names.length < MAX_PARTICIPANTS) {
-      setNames([...names, name]);
-    }
-  };
-
-  const handleRemoveName = (index: number) => {
-    setNames(names.filter((_, i) => i !== index));
-  };
-
-  const shuffleNames = () => {
-    const shuffledNames = [...names].sort(() => Math.random() - 0.5);
-    setNames(shuffledNames);
-  };
-
-  const sortNames = () => {
-    const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
-    setNames(sortedNames);
-  };
+const AppContent: React.FC = () => {
+  const { errors, dismissError } = useErrorContext();
 
   return (
-    <>
+    <AppContainer>
       <Header />
       <Main>
-        <Participants
-          handleAddName={handleAddName}
-          handleRemoveName={handleRemoveName}
-          shuffleNames={shuffleNames}
-          sortNames={sortNames}
-          names={names}
-        />
-        <Wheel participants={names} />
+        <Participants />
+        <Wheel />
       </Main>
-    </>
+      <ErrorNotification errors={errors} onDismiss={dismissError} />
+    </AppContainer>
   );
-}
+};
+
+const App: React.FC = () => {
+  return (
+    <ErrorProvider>
+      <ParticipantsProvider>
+        <WheelProvider>
+          <AppContent />
+        </WheelProvider>
+      </ParticipantsProvider>
+    </ErrorProvider>
+  );
+};
 
 export default App;

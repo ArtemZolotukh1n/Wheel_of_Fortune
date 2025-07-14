@@ -1,9 +1,9 @@
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Section, Button, Input } from './styles';
-import { FC, useState } from 'react';
-
-import { MAX_PARTICIPANTS } from './App';
+import { useParticipants } from './hooks/useParticipants';
 import { capitalize } from './utils';
+import { useErrorContext } from './hooks/useErrorContext';
 
 const ListItemContainer = styled.div`
   display: flex;
@@ -39,47 +39,39 @@ const ErrorMessage = styled.p`
   color: red;
 `;
 
-interface ParticipantsProps {
-  handleAddName: (name: string) => void;
-  handleRemoveName: (index: number) => void;
-  shuffleNames: () => void;
-  sortNames: () => void;
-  names: string[];
-}
+export const Participants: React.FC = () => {
+  const {
+    participants,
+    addParticipant,
+    removeParticipant,
+    shuffleParticipants,
+    sortParticipants,
+    resetParticipants,
+    isMaxParticipantsReached,
+    hasParticipants,
+  } = useParticipants();
 
-export const Participants: FC<ParticipantsProps> = ({
-  handleAddName,
-  handleRemoveName,
-  shuffleNames,
-  sortNames,
-  names,
-}) => {
-  const [participant, setParticipant] = useState('');
-  const [error, setError] = useState('');
-
-  const isMaxParticipantsReached = names.length >= MAX_PARTICIPANTS;
-  const hasParticipants = names.length > 0;
-
-  const validateInput = (name: string) => {
-    const specialCharPattern = /[^а-яА-Я-a-zA-Z0-9 ]/;
-    if (!name.trim()) {
-      return 'Имя не может быть пустым.';
-    }
-    if (specialCharPattern.test(name)) {
-      return 'Имя не может содержать специальные символы.';
-    }
-    return '';
-  };
+  const [inputValue, setInputValue] = useState('');
+  const { addError, addSuccess } = useErrorContext();
 
   const handleAddParticipant = () => {
-    const validationError = validateInput(participant);
-    if (validationError) {
-      setError(validationError);
+    const result = addParticipant(inputValue);
+    if (result.isValid) {
+      setInputValue('');
+      addSuccess('Участник успешно добавлен!');
     } else {
-      handleAddName(participant);
-      setParticipant('');
-      setError('');
+      addError(result.error?.message || 'Произошла ошибка');
     }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleAddParticipant();
+    }
+  };
+
+  const handleRemoveParticipant = (id: string) => {
+    removeParticipant(id);
   };
 
   return (
@@ -89,15 +81,10 @@ export const Participants: FC<ParticipantsProps> = ({
         disabled={isMaxParticipantsReached}
         type="text"
         placeholder="Введите имя"
-        value={participant}
-        onChange={(e) => setParticipant(e.target.value)}
-        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-          if (e.key === 'Enter') {
-            handleAddParticipant();
-          }
-        }}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
       />
-      {error && <ErrorMessage>{error}</ErrorMessage>}
 
       {isMaxParticipantsReached && <ErrorMessage>Чет много</ErrorMessage>}
       <Button
@@ -108,18 +95,26 @@ export const Participants: FC<ParticipantsProps> = ({
       </Button>
       <h2>Участники</h2>
       <ButtonGroup>
-        <Button onClick={shuffleNames} disabled={!hasParticipants}>
+        <Button onClick={shuffleParticipants} disabled={!hasParticipants}>
           Перетасовать
         </Button>
-        <Button onClick={sortNames} disabled={!hasParticipants}>
+        <Button onClick={sortParticipants} disabled={!hasParticipants}>
           Отсортировать
+        </Button>
+        <Button
+          onClick={resetParticipants}
+          style={{ fontSize: '0.8rem', padding: '5px 10px' }}
+        >
+          Сброс
         </Button>
       </ButtonGroup>
       <ul>
-        {names.map((name, index) => (
-          <ListItemContainer key={index}>
-            <ListItem>{capitalize(name)}</ListItem>
-            <Button onClick={() => handleRemoveName(index)}>—</Button>
+        {participants.map((participant) => (
+          <ListItemContainer key={participant.id}>
+            <ListItem>{capitalize(participant.name)}</ListItem>
+            <Button onClick={() => handleRemoveParticipant(participant.id)}>
+              —
+            </Button>
           </ListItemContainer>
         ))}
       </ul>

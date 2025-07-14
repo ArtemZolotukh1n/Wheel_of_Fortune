@@ -1,11 +1,11 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import styled from 'styled-components';
 import ReactSlider from 'react-slider';
 import { capitalize } from './utils';
 import { SpinButtons } from './SpinButtons';
-import { SongNames, SpinDirection } from './types';
 import { MusicButtons } from './MusicButtons';
+import { useWheel } from './hooks/useWheel';
 
 const Popup = styled.div`
   position: fixed;
@@ -33,10 +33,6 @@ const Popup = styled.div`
   }
 `;
 
-interface Props {
-  participants: string[];
-}
-
 const colors = [
   '#CC4629', // Darker vibrant orange
   '#CC9A29', // Darker bright yellow
@@ -58,15 +54,21 @@ const colors = [
   '#CC294F', // Darker hot pink
 ];
 
-export const Wheel: React.FC<Props> = ({ participants }) => {
-  const [spinning, setSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [audioVolume, setAudioVolume] = useState(30);
-  const [track, setTrack] = useState<SongNames>('baraban_default.mp3');
-  const [spinDirection, setSpinDirection] =
-    useState<SpinDirection>('по часовой');
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupWinner, setPopupWinner] = useState<string | null>(null);
+export const Wheel: React.FC = () => {
+  const {
+    spinning,
+    rotation,
+    winner,
+    showWinnerPopup,
+    participants,
+    audioVolume,
+    audioTrack,
+    spinDirection,
+    startSpin,
+    changeSpinDirection,
+    setAudioVolume,
+    setAudioTrack,
+  } = useWheel();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const numSectors = participants.length;
@@ -123,7 +125,7 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
       ctx.shadowOffsetX = 1;
       ctx.shadowOffsetY = 1;
       ctx.shadowBlur = 3;
-      ctx.fillText(capitalize(participants[i]) || '', radius * 0.5, 0);
+      ctx.fillText(capitalize(participants[i]?.name) || '', radius * 0.5, 0);
       ctx.restore();
     }
 
@@ -146,85 +148,6 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
     ctx.restore();
   };
 
-  const startSpin = useCallback(() => {
-    if (spinning) return;
-    let audio = new Audio(`/${track}`);
-    audio.volume = audioVolume / 100;
-    audio.play();
-    setSpinning(true);
-
-    // Set the number of full rotations and calculate final rotation
-    const numFullRotations = Math.random() * 5 + 5; // Between 5 and 10 full rotations
-    const totalRotation = numFullRotations * 360;
-    const finalRotation =
-      (rotation +
-        (spinDirection === 'по часовой' ? -totalRotation : totalRotation)) %
-      360;
-
-    const spinDuration = 6000;
-    const easing = (t: number) => {
-      // Ease-out cubic
-      return 1 - Math.pow(1 - t, 3);
-    };
-
-    let startTime: number;
-
-    const animate = (time: number) => {
-      if (!startTime) startTime = time;
-      const elapsed = time - startTime;
-      const t = Math.min(elapsed / spinDuration, 1);
-      const easeT = easing(t);
-      const currentRotation =
-        rotation +
-        (spinDirection === 'по часовой' ? -totalRotation : totalRotation) *
-          easeT;
-
-      setRotation(currentRotation);
-
-      if (elapsed < spinDuration) {
-        requestAnimationFrame(animate);
-      } else {
-        setSpinning(false);
-        determineWinner(finalRotation);
-      }
-    };
-
-    requestAnimationFrame(animate);
-  }, [spinning, track, rotation, spinDirection, participants]);
-
-  const determineWinner = useCallback(
-    (finalRotation: number) => {
-      const sliceAngle = 360 / numSectors;
-      const normalizedRotation = ((finalRotation % 360) + 360) % 360;
-      const winningSector = Math.floor(normalizedRotation / sliceAngle);
-
-      setPopupWinner(participants[winningSector]);
-      setShowPopup(true);
-    },
-    [participants, numSectors],
-  );
-
-  const changeSpinDirection = useCallback(() => {
-    setSpinDirection(
-      spinDirection === 'по часовой' ? 'против часовой' : 'по часовой',
-    );
-  }, [spinDirection]);
-
-  const handleChangeTrack = useCallback(
-    (track: SongNames) => {
-      setTrack(track);
-    },
-    [setTrack],
-  );
-
-  useEffect(() => {
-    if (showPopup) {
-      startConfetti();
-      const timer = setTimeout(() => setShowPopup(false), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [showPopup]);
-
   const startConfetti = () => {
     confetti({
       particleCount: 100,
@@ -232,6 +155,12 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
       origin: { y: 0.6 },
     });
   };
+
+  useEffect(() => {
+    if (showWinnerPopup) {
+      startConfetti();
+    }
+  }, [showWinnerPopup]);
 
   return (
     <div>
@@ -248,7 +177,7 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
         spinning={spinning}
         participants={participants}
       />
-      <MusicButtons track={track} setTrack={handleChangeTrack} />
+      <MusicButtons track={audioTrack} setTrack={setAudioTrack} />
       <ReactSlider
         className="customSlider"
         trackClassName="customSlider-track"
@@ -259,19 +188,20 @@ export const Wheel: React.FC<Props> = ({ participants }) => {
         defaultValue={audioVolume}
         value={audioVolume}
         onChange={(value: number) => setAudioVolume(value)}
-        renderMark={(props: any) => {
-          if (props.key < audioVolume) {
+        renderMark={(props) => {
+          const key = props.key as number;
+          if (key < audioVolume) {
             props.className = 'customSlider-mark customSlider-mark-before';
-          } else if (props.key === audioVolume) {
+          } else if (key === audioVolume) {
             props.className = 'customSlider-mark customSlider-mark-active';
           }
           return <span {...props} />;
         }}
       />
-      {showPopup && popupWinner && (
+      {showWinnerPopup && winner && (
         <Popup>
           <h2>Поздравляю!</h2>
-          <h3>{capitalize(popupWinner)}</h3>
+          <h3>{capitalize(winner.name)}</h3>
         </Popup>
       )}
     </div>

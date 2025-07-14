@@ -4,43 +4,57 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import prettierPlugin from 'eslint-plugin-prettier';
 import reactPlugin from 'eslint-plugin-react';
-import { ESLint } from '@typescript-eslint/eslint-plugin';
+import tseslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
+import prettierConfig from 'eslint-config-prettier';
 
-export default {
-  ignores: ['dist'], // Handle ignored folders
-  extends: [
-    js.configs.recommended,
-    'eslint:recommended',
-    'plugin:react/recommended',
-    'plugin:@typescript-eslint/recommended', // Add TypeScript ESLint rules
-    'prettier', // Ensure Prettier overrides other configs
-  ],
-  files: ['**/*.{js,jsx,ts,tsx}'], // Combine JS and TS files
-  parser: tsParser, // Use TypeScript parser
-  parserOptions: {
-    ecmaVersion: 2020,
-    globals: globals.browser,
-    ecmaFeatures: {
-      jsx: true,
+export default [
+  {
+    ignores: ['dist/**', 'node_modules/**'],
+  },
+  {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.es2020,
+      },
     },
-    sourceType: 'module',
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+      react: reactPlugin,
+      prettier: prettierPlugin,
+      '@typescript-eslint': tseslint,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...reactHooks.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
+      ...prettierConfig.rules,
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+      'prettier/prettier': 'error',
+      'no-multiple-empty-lines': ['error', { max: 1 }],
+      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      'react/react-in-jsx-scope': 'off',
+      'react/prop-types': 'off',
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   },
-  plugins: {
-    'react-hooks': reactHooks,
-    'react-refresh': reactRefresh,
-    react: reactPlugin,
-    prettier: prettierPlugin,
-    '@typescript-eslint': ESLint, // Add TypeScript ESLint plugin
-  },
-  rules: {
-    ...reactHooks.configs.recommended.rules,
-    'react-refresh/only-export-components': [
-      'warn',
-      { allowConstantExport: true },
-    ],
-    'prettier/prettier': 'error', // Enforce Prettier rules as ESLint errors
-    'no-multiple-empty-lines': ['error', { max: 1 }],
-    '@typescript-eslint/no-unused-vars': 'warn', // Example TypeScript-specific rule
-  },
-};
+];

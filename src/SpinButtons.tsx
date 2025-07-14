@@ -1,14 +1,14 @@
 import React from 'react';
 import { Button, ButtonsContainer } from './styles';
 import { capitalize } from './utils';
-import { SpinDirection } from './types';
+import { SpinDirection, Participant } from './types/index';
 
 interface ISpinButtonsProps {
   spinDirection: SpinDirection;
   changeSpinDirection: () => void;
   startSpin: () => void;
   spinning: boolean;
-  participants: string[];
+  participants: Participant[];
 }
 
 export const SpinButtons = React.memo(
