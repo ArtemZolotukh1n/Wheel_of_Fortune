@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  ReactNode,
+} from 'react';
 import {
   Participant,
   SongNames,
@@ -6,7 +12,9 @@ import {
   WheelState,
   AudioSettings,
   SpinSettings,
+  AppSettings,
 } from '../types/index';
+import { db } from '../db';
 
 export type WheelAction =
   | { type: 'SET_SPINNING'; payload: boolean }
@@ -16,6 +24,7 @@ export type WheelAction =
   | { type: 'SET_AUDIO_VOLUME'; payload: number }
   | { type: 'SET_AUDIO_TRACK'; payload: SongNames }
   | { type: 'SET_SPIN_DIRECTION'; payload: SpinDirection }
+  | { type: 'LOAD_SETTINGS'; payload: AppSettings }
   | { type: 'RESET_WHEEL' };
 
 interface WheelContextState {
@@ -29,22 +38,10 @@ interface WheelContextType {
   dispatch: React.Dispatch<WheelAction>;
 }
 
-// Загружаем настройки из localStorage
-const loadSettingsFromStorage = () => {
-  try {
-    const stored = localStorage.getItem('wheelOfFortuneSettings');
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.warn('Ошибка загрузки настроек из localStorage:', error);
-  }
-
-  return {
-    audioVolume: 30,
-    audioTrack: 'baraban_default.mp3' as SongNames,
-    spinDirection: 'по часовой' as SpinDirection,
-  };
+const defaultSettings: AppSettings = {
+  audioVolume: 30,
+  audioTrack: 'baraban_default.mp3',
+  spinDirection: 'по часовой',
 };
 
 const wheelReducer = (
@@ -115,6 +112,20 @@ const wheelReducer = (
         },
       };
 
+    case 'LOAD_SETTINGS':
+      return {
+        ...state,
+        audio: {
+          ...state.audio,
+          volume: action.payload.audioVolume,
+          track: action.payload.audioTrack,
+        },
+        spin: {
+          ...state.spin,
+          direction: action.payload.spinDirection,
+        },
+      };
+
     case 'RESET_WHEEL':
       return {
         ...state,
@@ -139,27 +150,49 @@ interface WheelProviderProps {
 }
 
 export const WheelProvider: React.FC<WheelProviderProps> = ({ children }) => {
-  const settings = loadSettingsFromStorage();
-
   const [state, dispatch] = useReducer(wheelReducer, {
     wheel: {
-      participants: [], // Участники будут браться из ParticipantsContext
+      participants: [], // Участники управляются через IndexedDB
       spinning: false,
       rotation: 0,
       winner: null,
       showWinnerPopup: false,
     },
     audio: {
-      volume: settings.audioVolume,
-      track: settings.audioTrack,
+      volume: defaultSettings.audioVolume,
+      track: defaultSettings.audioTrack,
     },
     spin: {
-      direction: settings.spinDirection,
+      direction: defaultSettings.spinDirection,
       duration: 6000,
       minRotations: 5,
       maxRotations: 10,
     },
   });
+
+  useEffect(() => {
+    let isMounted = true;
+    db.settings
+      .get('app')
+      .then((settings) => {
+        if (settings && isMounted) {
+          dispatch({
+            type: 'LOAD_SETTINGS',
+            payload: {
+              audioVolume: settings.audioVolume,
+              audioTrack: settings.audioTrack,
+              spinDirection: settings.spinDirection,
+            },
+          });
+        }
+      })
+      .catch((error) => {
+        console.warn('Ошибка загрузки настроек из IndexedDB:', error);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <WheelContext.Provider value={{ state, dispatch }}>

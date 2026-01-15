@@ -27,6 +27,8 @@ function createParticipants(count: number): Participant[] {
     id: `participant-${index}`,
     name: `Участник ${index + 1}`,
     addedAt: new Date(),
+    balance: 10000,
+    order: index,
   }));
 }
 

@@ -68,6 +68,7 @@ export const Wheel: React.FC = () => {
     changeSpinDirection,
     setAudioVolume,
     setAudioTrack,
+    isGameComplete,
   } = useWheel();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -176,6 +177,7 @@ export const Wheel: React.FC = () => {
         startSpin={startSpin}
         spinning={spinning}
         participants={participants}
+        isGameComplete={isGameComplete}
       />
       <MusicButtons track={audioTrack} setTrack={setAudioTrack} />
       <ReactSlider

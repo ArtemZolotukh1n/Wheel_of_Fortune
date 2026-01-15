@@ -1,20 +1,21 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { Participant } from '../types/index';
+import { updateSettings } from '../db';
 import { useWheelContext } from '../context/WheelContext';
-import { useParticipantsContext } from '../hooks/useParticipantsContext';
+import { useBets } from './useBets';
 
 export const useWheel = () => {
   const { state: wheelState, dispatch: wheelDispatch } = useWheelContext();
-  const { state: participantsState } = useParticipantsContext();
+  const { participants, gameState, settleRound } = useBets();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const animationRef = useRef<number | null>(null);
 
   const determineWinner = useCallback(
     (finalRotation: number): Participant | null => {
-      if (participantsState.participants.length === 0) return null;
+      if (participants.length === 0) return null;
 
-      const sliceAngle = 360 / participantsState.participants.length;
+      const sliceAngle = 360 / participants.length;
       // Нормализуем поворот к диапазону 0-360
       const normalizedRotation = ((finalRotation % 360) + 360) % 360;
 
@@ -23,17 +24,18 @@ export const useWheel = () => {
       // Поэтому нужно найти сектор, который находится под индикатором
       const winningSectorIndex =
         Math.floor(normalizedRotation / sliceAngle) %
-        participantsState.participants.length;
+        participants.length;
 
-      return participantsState.participants[winningSectorIndex] || null;
+      return participants[winningSectorIndex] || null;
     },
-    [participantsState.participants],
+    [participants],
   );
 
   const startSpin = useCallback(() => {
     if (
       wheelState.wheel.spinning ||
-      participantsState.participants.length === 0
+      participants.length === 0 ||
+      gameState.isComplete
     )
       return;
 
@@ -96,6 +98,7 @@ export const useWheel = () => {
         if (winner) {
           wheelDispatch({ type: 'SET_WINNER', payload: winner });
           wheelDispatch({ type: 'SET_WINNER_POPUP', payload: true });
+          void settleRound(winner);
         }
       }
     };
@@ -110,9 +113,11 @@ export const useWheel = () => {
     wheelState.spin.duration,
     wheelState.spin.minRotations,
     wheelState.spin.maxRotations,
-    participantsState.participants,
+    participants,
+    gameState.isComplete,
     wheelDispatch,
     determineWinner,
+    settleRound,
   ]);
 
   const changeSpinDirection = useCallback(() => {
@@ -122,33 +127,14 @@ export const useWheel = () => {
         : 'по часовой';
     wheelDispatch({ type: 'SET_SPIN_DIRECTION', payload: newDirection });
 
-    // Сохраняем в localStorage
-    try {
-      const stored = localStorage.getItem('wheelOfFortuneSettings');
-      const settings = stored ? JSON.parse(stored) : {};
-      settings.spinDirection = newDirection;
-      localStorage.setItem('wheelOfFortuneSettings', JSON.stringify(settings));
-    } catch (error) {
-      console.warn('Ошибка сохранения настроек:', error);
-    }
+    void updateSettings({ spinDirection: newDirection });
   }, [wheelState.spin.direction, wheelDispatch]);
 
   const setAudioVolume = useCallback(
     (volume: number) => {
       wheelDispatch({ type: 'SET_AUDIO_VOLUME', payload: volume });
 
-      // Сохраняем в localStorage
-      try {
-        const stored = localStorage.getItem('wheelOfFortuneSettings');
-        const settings = stored ? JSON.parse(stored) : {};
-        settings.audioVolume = volume;
-        localStorage.setItem(
-          'wheelOfFortuneSettings',
-          JSON.stringify(settings),
-        );
-      } catch (error) {
-        console.warn('Ошибка сохранения настроек:', error);
-      }
+      void updateSettings({ audioVolume: volume });
     },
     [wheelDispatch],
   );
@@ -157,18 +143,7 @@ export const useWheel = () => {
     (track: typeof wheelState.audio.track) => {
       wheelDispatch({ type: 'SET_AUDIO_TRACK', payload: track });
 
-      // Сохраняем в localStorage
-      try {
-        const stored = localStorage.getItem('wheelOfFortuneSettings');
-        const settings = stored ? JSON.parse(stored) : {};
-        settings.audioTrack = track;
-        localStorage.setItem(
-          'wheelOfFortuneSettings',
-          JSON.stringify(settings),
-        );
-      } catch (error) {
-        console.warn('Ошибка сохранения настроек:', error);
-      }
+      void updateSettings({ audioTrack: track });
     },
     [wheelDispatch],
   );
@@ -212,10 +187,11 @@ export const useWheel = () => {
     rotation: wheelState.wheel.rotation,
     winner: wheelState.wheel.winner,
     showWinnerPopup: wheelState.wheel.showWinnerPopup,
-    participants: participantsState.participants,
+    participants,
     audioVolume: wheelState.audio.volume,
     audioTrack: wheelState.audio.track,
     spinDirection: wheelState.spin.direction,
+    isGameComplete: gameState.isComplete,
 
     // Actions
     startSpin,

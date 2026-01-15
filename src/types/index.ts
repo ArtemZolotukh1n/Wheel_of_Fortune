@@ -10,6 +10,8 @@ export interface Participant {
   id: string;
   name: string;
   addedAt: Date;
+  balance: number;
+  order: number;
 }
 
 export interface WheelState {
@@ -30,6 +32,48 @@ export interface SpinSettings {
   duration: number;
   minRotations: number;
   maxRotations: number;
+}
+
+export interface AppSettings {
+  audioVolume: number;
+  audioTrack: SongNames;
+  spinDirection: SpinDirection;
+}
+
+export interface GameState {
+  id: 'game';
+  currentRound: number;
+  totalRounds: number;
+  isComplete: boolean;
+}
+
+export interface RoundBet {
+  id: string;
+  roundNumber: number;
+  bettorId: string;
+  targetId: string;
+  amount: number;
+}
+
+export interface RoundBetResult {
+  bettorId: string;
+  bettorName: string;
+  targetId: string;
+  targetName: string;
+  amount: number;
+  payout: number;
+  balanceDelta: number;
+}
+
+export interface RoundResult {
+  id: string;
+  roundNumber: number;
+  winnerId: string;
+  winnerName: string;
+  pool: number;
+  totalBetsOnWinner: number;
+  settledAt: string;
+  bets: RoundBetResult[];
 }
 
 export interface AppState {

@@ -1,12 +1,25 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { Participant, ParticipantValidationResult } from '../types/index';
-import { useParticipantsContext } from './useParticipantsContext';
+import { db } from '../db';
+import {
+  buildDefaultParticipants,
+  DEFAULT_START_BALANCE,
+} from '../utils/participants';
 
 export const MAX_PARTICIPANTS = 32;
 
 export const useParticipants = () => {
-  const { state, dispatch } = useParticipantsContext();
-  const { participants } = state;
+  const participants =
+    useLiveQuery(() => db.participants.orderBy('order').toArray(), []) || [];
+  const maxOrder = useMemo(
+    () =>
+      participants.reduce(
+        (currentMax, participant) => Math.max(currentMax, participant.order),
+        -1,
+      ),
+    [participants],
+  );
 
   const validateParticipant = useCallback(
     (name: string): ParticipantValidationResult => {
@@ -89,72 +102,58 @@ export const useParticipants = () => {
       }
 
       const newParticipant: Participant = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        id: Date.now().toString() + Math.random().toString(36).slice(2, 11),
         name: name.trim(),
         addedAt: new Date(),
+        balance: DEFAULT_START_BALANCE,
+        order: maxOrder + 1,
       };
 
-      dispatch({ type: 'ADD_PARTICIPANT', payload: newParticipant });
-
-      // Сохраняем в localStorage
-      const updatedParticipants = [...participants, newParticipant];
-      const serialized = updatedParticipants.map((p) => ({
-        ...p,
-        addedAt: p.addedAt.toISOString(),
-      }));
-      localStorage.setItem(
-        'wheelOfFortuneParticipants',
-        JSON.stringify(serialized),
-      );
+      void db.participants.add(newParticipant);
 
       return { isValid: true };
     },
-    [participants, validateParticipant, dispatch],
+    [participants.length, validateParticipant, maxOrder],
   );
 
-  const removeParticipant = useCallback(
-    (id: string) => {
-      dispatch({ type: 'REMOVE_PARTICIPANT', payload: id });
-
-      // Сохраняем в localStorage
-      const updatedParticipants = participants.filter((p) => p.id !== id);
-      const serialized = updatedParticipants.map((p) => ({
-        ...p,
-        addedAt: p.addedAt.toISOString(),
-      }));
-      localStorage.setItem(
-        'wheelOfFortuneParticipants',
-        JSON.stringify(serialized),
-      );
-    },
-    [dispatch, participants],
-  );
+  const removeParticipant = useCallback((id: string) => {
+    void db.transaction('rw', db.participants, db.bets, async () => {
+      await db.participants.delete(id);
+      await db.bets.where('bettorId').equals(id).delete();
+      await db.bets.where('targetId').equals(id).delete();
+    });
+  }, []);
 
   const shuffleParticipants = useCallback(() => {
-    dispatch({ type: 'SHUFFLE_PARTICIPANTS' });
-  }, [dispatch]);
+    void db.transaction('rw', db.participants, async () => {
+      const shuffled = [...participants].sort(() => Math.random() - 0.5);
+      await Promise.all(
+        shuffled.map((participant, index) =>
+          db.participants.put({ ...participant, order: index }),
+        ),
+      );
+    });
+  }, [participants]);
 
   const sortParticipants = useCallback(() => {
-    dispatch({ type: 'SORT_PARTICIPANTS' });
-  }, [dispatch]);
+    void db.transaction('rw', db.participants, async () => {
+      const sorted = [...participants].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+      await Promise.all(
+        sorted.map((participant, index) =>
+          db.participants.put({ ...participant, order: index }),
+        ),
+      );
+    });
+  }, [participants]);
 
   const resetParticipants = useCallback(() => {
-    dispatch({ type: 'RESET_PARTICIPANTS' });
-
-    // Сохраняем дефолтных участников в localStorage
-    const defaultParticipants = [
-      { id: '1', name: 'Илья М', addedAt: new Date().toISOString() },
-      { id: '2', name: 'Илья П', addedAt: new Date().toISOString() },
-      { id: '3', name: 'Темочка', addedAt: new Date().toISOString() },
-      { id: '4', name: 'Павел', addedAt: new Date().toISOString() },
-      { id: '5', name: 'Дмитрий', addedAt: new Date().toISOString() },
-      { id: '6', name: 'Константин', addedAt: new Date().toISOString() },
-    ];
-    localStorage.setItem(
-      'wheelOfFortuneParticipants',
-      JSON.stringify(defaultParticipants),
-    );
-  }, [dispatch]);
+    void db.transaction('rw', db.participants, async () => {
+      await db.participants.clear();
+      await db.participants.bulkAdd(buildDefaultParticipants());
+    });
+  }, []);
 
   return {
     participants,

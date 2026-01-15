@@ -1,14 +1,15 @@
 import React from 'react';
 import styled from 'styled-components';
-import { ParticipantsProvider } from './context/ParticipantsContext';
 import { WheelProvider } from './context/WheelContext';
 import { ErrorProvider } from './context/ErrorContext';
 import { Participants } from './Participants';
 import { Wheel } from './Wheel';
 import { Header } from './Header';
 import { ErrorNotification } from './components/ErrorNotification';
+import { BetsPortal } from './components/BetsPortal';
 import './App.css';
 import { useErrorContext } from './hooks/useErrorContext';
+import { useInitializeDb } from './hooks/useInitializeDb';
 
 const Main = styled.main`
   display: flex;
@@ -30,6 +31,7 @@ const AppContainer = styled.div`
 
 const AppContent: React.FC = () => {
   const { errors, dismissError } = useErrorContext();
+  useInitializeDb();
 
   return (
     <AppContainer>
@@ -38,6 +40,7 @@ const AppContent: React.FC = () => {
         <Participants />
         <Wheel />
       </Main>
+      <BetsPortal />
       <ErrorNotification errors={errors} onDismiss={dismissError} />
     </AppContainer>
   );
@@ -46,11 +49,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorProvider>
-      <ParticipantsProvider>
-        <WheelProvider>
-          <AppContent />
-        </WheelProvider>
-      </ParticipantsProvider>
+      <WheelProvider>
+        <AppContent />
+      </WheelProvider>
     </ErrorProvider>
   );
 };
