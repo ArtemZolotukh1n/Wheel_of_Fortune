@@ -6,7 +6,7 @@ import { Participants } from './Participants';
 import { Wheel } from './Wheel';
 import { Header } from './Header';
 import { ErrorNotification } from './components/ErrorNotification';
-import { BetsPortal } from './components/BetsPortal';
+import { BetsPortal } from './components/betsPopup';
 import './App.css';
 import { useErrorContext } from './hooks/useErrorContext';
 import { useInitializeDb } from './hooks/useInitializeDb';
@@ -49,9 +49,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorProvider>
-      <WheelProvider>
-        <AppContent />
-      </WheelProvider>
+        <WheelProvider>
+          <AppContent />
+        </WheelProvider>
     </ErrorProvider>
   );
 };
