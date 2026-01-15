@@ -49,9 +49,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorProvider>
-        <WheelProvider>
-          <AppContent />
-        </WheelProvider>
+      <WheelProvider>
+        <AppContent />
+      </WheelProvider>
     </ErrorProvider>
   );
 };
