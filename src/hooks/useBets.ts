@@ -13,9 +13,7 @@ const DEFAULT_GAME_STATE: GameState = {
 
 const normalizeBetAmount = (amount: number, balance: number) => {
   if (Number.isNaN(amount) || amount <= 0) return 0;
-  if (balance < 100) return 0;
-  if (amount < 100) return 100;
-  return Math.min(amount, balance);
+  return Math.min(Math.round(amount), balance);
 };
 
 export const useBets = () => {
@@ -111,8 +109,13 @@ export const useBets = () => {
       .toArray();
     const allParticipants = await db.participants.toArray();
 
-    const poolSum = roundBets.reduce((sum, bet) => sum + bet.amount, 0);
-    const totalBetsOnWinner = roundBets.reduce(
+    const normalizedBets = roundBets.map((bet) => ({
+      ...bet,
+      amount: bet.amount > 0 && bet.amount < 100 ? 100 : bet.amount,
+    }));
+
+    const poolSum = normalizedBets.reduce((sum, bet) => sum + bet.amount, 0);
+    const totalBetsOnWinner = normalizedBets.reduce(
       (sum, bet) => (bet.targetId === winner.id ? sum + bet.amount : sum),
       0,
     );
@@ -121,7 +124,9 @@ export const useBets = () => {
       allParticipants.map((participant) => [participant.id, participant]),
     );
 
-    const betsByBettor = new Map(roundBets.map((bet) => [bet.bettorId, bet]));
+    const betsByBettor = new Map(
+      normalizedBets.map((bet) => [bet.bettorId, bet]),
+    );
     const effectiveBets = allParticipants.map((participant) => {
       const existing = betsByBettor.get(participant.id);
       return (
